@@ -1,0 +1,237 @@
+#include <RTClib.h>
+#include <Wire.h>
+#include<SD.h>
+#include<SPI.h>
+#define LOG_INTERVAL 1000
+#define SYNC_INTERVAL 1000
+uint32_t syncTime = 0;
+#define ECHO_TO_SERIAL 1
+// char activeIR[]="Active";
+// char inactiveIR[]="Inactive";
+// char* state;
+RTC_DS1307 RTC; // define the Real Time Clock object
+const int chipSelect = 10;
+File myfile;
+
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>            // include servo.h library
+//#include <LiquidCrystal.h> 
+#include <NewPing.h> 
+#define trigPin 6 //Define the HC-SE04 triger on pin 6 on the arduino
+#define echoPin 5 //Define the HC-SE04 echo on pin 5 on the arduino
+#define moisture_pin A1//Pin on which the moisture sensor is connected
+//Declaring the pin on which the metal detection sensor is connected
+#define metal_pin A2
+#define buzzer 3
+//#define touch_sensor 2
+#define ir_pin 7
+
+int moisture_sensor_value;
+int metal_sensor_value;
+//int touch_sensor_value;
+int Ir_sensor_value;
+long distance,duration;
+//Declaring the object of new Ping library
+NewPing sonar(trigPin,echoPin,10);
+
+//Defining the object of servo
+Servo myservo;
+//Threshold value for Moisture sensor 
+const int moisture_threshold=990;
+const int dry_threshold=1016;
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+void setup() {
+  // put your setup code here, to run once:
+  lcd.backlight();
+  Serial.begin(9600);
+//initialize SD card
+  initSDcard();
+//Creating a new file
+createFile();
+//Initializing Rtc clock
+initRTC();
+//Printing the headers
+  myfile.println("millis,stamp,datetime,MetalSensor,MoistureSensor,IRsensor");
+  #if ECHO_TO_SERIAL
+  Serial.println("millis,stamp,datetime,MetalSensor,MoistureSensor,IRsensor");
+  #endif
+//Connections of servo motor
+  myservo.attach(8);//The servo motor is connected to the digital pin 8
+  myservo.write(0);
+  pinMode(trigPin,OUTPUT);
+  pinMode(echoPin,INPUT);
+  pinMode(buzzer,OUTPUT);
+  //pinMode(touch_sensor,INPUT);
+  pinMode(metal_pin,OUTPUT);
+  pinMode(ir_pin,INPUT);
+  pinMode(moisture_pin,INPUT);
+  //Initializing the lcd
+  lcd.init();
+  lcd.print("WELCOME");
+  Serial.println("WELCOME");
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  //Printing the date and time
+  DateTime now;
+  delay((LOG_INTERVAL-1)-(millis() % LOG_INTERVAL));
+  //Printing millis
+  uint32_t m=millis();
+  myfile.print(m);
+  myfile.print(", ");
+  #if ECHO_TO_SERIAL
+  Serial.print(m);         // milliseconds since start
+  Serial.print(", ");
+  #endif
+  //Fetching time
+  now = RTC.now();
+  //log time
+  myfile.print(now.unixtime()); // seconds since 2000
+  myfile.print(", ");
+  myfile.print(now.year(), DEC);
+  myfile.print("/");
+  myfile.print(now.month(), DEC);
+  myfile.print("/");
+  myfile.print(now.day(), DEC);
+  myfile.print(" ");
+  myfile.print(now.hour(), DEC);
+  myfile.print(":");
+  myfile.print(now.minute(), DEC);
+  myfile.print(":");
+  myfile.print(now.second(), DEC);
+#if ECHO_TO_SERIAL
+  Serial.print(now.unixtime()); // seconds since 2000
+  Serial.print(", ");
+  Serial.print(now.year(), DEC);
+  Serial.print("/");
+  Serial.print(now.month(), DEC);
+  Serial.print("/");
+  Serial.print(now.day(), DEC);
+  Serial.print(" ");
+  Serial.print(now.hour(), DEC);
+  Serial.print(":");
+  Serial.print(now.minute(), DEC);
+  Serial.print(":");
+  Serial.print(now.second(), DEC);
+#endif //ECHO_TO_SERIAL
+  digitalWrite(buzzer,LOW);
+  lcd.setCursor(0,0);
+  lcd.print("WAITING");
+  metal_sensor_value=analogRead(metal_pin);
+  myfile.print(", ");
+  myfile.print(metal_sensor_value);
+  #if ECHO_TO_SERIAL
+  Serial.print(", ");
+  Serial.print(metal_sensor_value);
+  #endif //ECHO_TO_SERIAL
+
+  moisture_sensor_value=analogRead(moisture_pin);
+  // Serial.print("Moisture");
+  // Serial.println(moisture_sensor_value)
+  myfile.print(", ");
+  myfile.print(moisture_sensor_value);
+  #if ECHO_TO_SERIAL
+  Serial.print(", ");
+  Serial.print(moisture_sensor_value);
+  #endif //ECHO_TO_SERIAL
+  //Checking for the waste types now
+  Ir_sensor_value=digitalRead(ir_pin);
+  myfile.print(", ");
+  myfile.println(Ir_sensor_value);
+  #if ECHO_TO_SERIAL
+  Serial.print(", ");
+  Serial.println(Ir_sensor_value);
+  #endif //ECHO_TO_SERIAL
+
+  if(metal_sensor_value > 50)
+  {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("METAL");
+    Serial.println("METAL");
+
+    // digitalWrite(3,HIGH);
+    // delay(20);
+    // digitalWrite(3,LOW);
+    myservo.write(0);
+    delay(200);
+  }
+  else if(moisture_sensor_value < 80)
+  {
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print(" WET WASTE ");
+    myservo.write(90);
+    delay(200);
+  }  
+  else if( Ir_sensor_value== 0) ///&& touch_sensor_value==HIGH)
+  {
+      Serial.print(" IR VALUE: ");
+      Serial.println(Ir_sensor_value);
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print(" DRY WASTE ");
+      Serial.println("DRY WASTE");
+      myservo.write(180);
+      delay(200);
+  }
+  else{
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("NO WASTE DETECTED ");
+      Serial.println("NO WASTE DETECTED");
+      delay(100);
+    }
+  if ((millis() - syncTime) < SYNC_INTERVAL) return;
+  syncTime = millis();
+  myfile.flush();
+  } 
+
+void error(char const *str)
+{
+  Serial.print("error: ");
+  Serial.println(str);
+
+  while (1);
+}
+void initSDcard()
+{
+  Serial.print("Initializing SD card...");
+  // make sure that the default chip select pin is set to
+  // output, even if you don't use it:
+  pinMode(10, OUTPUT);
+
+  // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    // don't do anything more:
+    return;
+  }
+  Serial.println("card initialized.");
+}  
+void createFile()
+{
+  //file name must be in 8.3 format (name length at most 8 characters, follwed by a '.' and then a three character extension.
+  char filename[] = "JETG00.CSV";
+  for (uint8_t i = 0; i < 100; i++) {
+    filename[4] = i / 10 + '0';
+    filename[5] = i % 10 + '0';
+    if (! SD.exists(filename)) {
+      // only open a new file if it doesn't exist
+      myfile = SD.open(filename, FILE_WRITE);
+      break;  // leave the loop!
+}  
+  }
+}
+void initRTC()
+{
+  Wire.begin();
+  if (!RTC.begin()) {
+    myfile.println("RTC failed");
+#if ECHO_TO_SERIAL
+    Serial.println("RTC failed");
+#endif  //ECHO_TO_SERIAL
+  }
+}                  
+
