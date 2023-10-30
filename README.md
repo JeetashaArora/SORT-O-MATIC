@@ -14,6 +14,11 @@
 - IR sensor
 - Ultrasonic sensor
 
+# TECHNICAL SKILLS
+- C++
+- Data Visualization using tools such as Tableau
+- Data analysis
+
 
 
 
