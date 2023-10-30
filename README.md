@@ -7,14 +7,31 @@
   the buzzer buzzes to indicate the authorities about the filling up of dustbin.
 
 # HARDWARE USED
-- Arduino UNO
+- Arduino Uno Microcontroller
 - Data logger shield
 - Customized moisture detection sensor
 - A88 Metal Proximity sensor
 - IR sensor
-- Ultrasonic sensor
+- HC-SR04 Ultrasonic sensor
+- SG-90 Servo motor
+- I2C Led
+  
+## Features
+
+- **Advanced Sensor Integration:** Sort-O-Matic incorporates inductive proximity sensor, customized moisture detection sensor,IR sensor, and ultrasonic sensors to detect metallic, wet and dry waste. The Ultrasonic sensor is used to monitor the waste levels in bin.
+
+- **Efficient Waste Segregation:** The system employs the sense think and act paradigm to make real-time decisions on sorting, achieving a high level of accuracy.
+
+- **Servo Motor Control:** Sort-O-Matic uses a servo motor to physically direct waste materials into designated storage areas, ensuring efficient sorting.
+
+- **User-Friendly Interface:** The system comes with an intuitive interface for monitoring and customization, making it accessible for both industrial and residential users.
+
+- **Data Logging and Analytics:** Sort-O-Matic logs sensor data, allowing users to analyze waste composition and optimize their waste management strategies.
+
+- **Preventing Overflow:** An ultrasonic sensor continuously monitors the level of waste in the bins and sends signal to the Arduino Uno microcontroller if the bin is full, in order to indicate the authorities about the filling up of dustbins by means of an LED and buzzer to prevent overflow of the dustbin.
 
 # TECHNICAL SKILLS
+
 - C++
 - Data Visualization using tools such as Tableau
 - Data analysis
